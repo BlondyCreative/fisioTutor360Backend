@@ -4,47 +4,53 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
 
-// Conexión a la base de datos
-$conexion = new mysqli("localhost", "root", "", "fisioTutor");
+$host = getenv('DB_HOST');
+$user = getenv('DB_USER');
+$pass = getenv('DB_PASS');
+$dbname = getenv('DB_NAME');
+
+// 1. Crear la conexión (esto faltaba)
+$conexion = new mysqli($host, $user, $pass, $dbname);
+
 if ($conexion->connect_error) {
-    echo json_encode(["status" => "error", "message" => "Error de conexión: " . $conexion->connect_error]);
+    echo json_encode(["status" => "error", "message" => "Connection failed: " . $conexion->connect_error]);
     exit;
 }
 
-// Capturar el cuerpo de la solicitud POST en JSON
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-$emailaddress = $data['email'] ?? '';
+$email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
-if (empty($emailaddress) || empty($password)) {
-    echo json_encode(["status" => "error", "message" => "Email and password are required"]);
-    exit; 
+
+// 2. Validación
+if (empty($email) || empty($password)) {
+    echo json_encode(["status" => "error", "message" => "All fields are required"]);
+    exit;
 }
+
+// 3. Buscar usuario
 $verify = $conexion->prepare("SELECT email, password, name FROM users WHERE email = ?");
-$verify->bind_param("s", $emailaddress);
+$verify->bind_param("s", $email);
 $verify->execute();
 $result = $verify->get_result();
 
 if ($result && $result->num_rows === 1) {
     $row = $result->fetch_assoc();
-    file_put_contents('debug_login.txt', print_r($row, true));
 
-    $emailaddressSave = $row['email'];
+    $emailSave = $row['email'];
     $passwordHash = $row['password'];
     $nameSave = $row['name'];
 
     if (password_verify($password, $passwordHash)) {
-
         echo json_encode([
             "status" => "success",
             "message" => "Login successful",
             "user" => [
-                "email" => $emailaddressSave,
-                "name" => $nameSave // Enviado exitosamente al frontend
+                "email" => $emailSave,
+                "name" => $nameSave
             ]
         ]);
-        exit;
     } else {
         echo json_encode(["status" => "error", "message" => "Invalid credentials"]);
     }
