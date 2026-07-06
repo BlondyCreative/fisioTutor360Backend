@@ -4,8 +4,13 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
 
-// 1. Database Connection
-$conexion = new mysqli("localhost", "root", "", "fisioTutor");
+$host = getenv('DB_HOST');
+$user = getenv('DB_USER');
+$pass = getenv('DB_PASS');
+$dbname = getenv('DB_NAME');
+
+// 1. Crear la conexión
+$conexion = new mysqli($host, $user, $pass, $dbname);
 
 if ($conexion->connect_error) {
     echo json_encode(["status" => "error", "message" => "Connection failed: " . $conexion->connect_error]);
@@ -16,8 +21,8 @@ if ($conexion->connect_error) {
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-$name = $data['name'] ?? '';
-$email = $data['email'] ?? '';
+$name = trim($data['name'] ?? '');
+$email = strtolower(trim($data['email'] ?? '')); // normalizado igual que en login
 $password = $data['password'] ?? '';
 
 // 3. Validation
@@ -36,6 +41,7 @@ if ($result->num_rows > 0) {
     echo json_encode(["status" => "error", "message" => "Email already registered"]);
     exit;
 }
+$checkEmail->close();
 
 // 5. Hash Password & Save User
 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
